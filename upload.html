@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast File Manager & Uploader</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary-color: #24292e;
+            --accent-color: #28a745; 
+            --danger-color: #cb2431;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 750px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        h1 { text-align: center; margin-bottom: 25px; }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+        }
+
+        .upload-btn {
+            width: 100%;
+            background-color: var(--accent-color);
+            color: white;
+            padding: 12px;
+            font-size: 1rem;
+        }
+
+        .upload-btn:hover { background-color: #218838; }
+        .upload-btn:disabled { background-color: #94d3a2; cursor: not-allowed; }
+
+        .delete-btn {
+            background-color: #fff;
+            color: var(--danger-color);
+            border: 1px solid var(--danger-color);
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .delete-btn:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
+
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .file-table th, .file-table td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eeeeee;
+        }
+
+        .file-table th {
+            background-color: #f8f9fa;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .file-details {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .meta-text {
+            font-size: 0.8rem;
+            color: #777;
+        }
+        
+        .fade-out {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>Repository Control Panel</h1>
+
+        <div class="form-group">
+            <label for="fileInput">Select File to Add/Overwrite:</label>
+            <input type="file" id="fileInput">
+        </div>
+
+        <button id="uploadBtn" class="btn upload-btn">Upload File</button>
+
+        <div id="status"></div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Files in folder: "/exe"</h2>
+            <button id="refreshBtn" class="btn" style="background-color: #24292e; color: white; padding: 6px 12px; font-size: 0.85rem;">🔄 Refresh List</button>
+        </div>
+        
+        <table class="file-table">
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Size</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="directoryBody">
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #777; font-style: italic;">Connecting to repository data stream...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const GITHUB_TOKEN = "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"; 
+    const GITHUB_USERNAME = "Devriz1";
+    const REPO_NAME = "shared";
+    const FOLDER_PATH = "exe"; 
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const statusDiv = document.getElementById('status');
+    const directoryBody = document.getElementById('directoryBody');
+    
+    let cachedFiles = [];
+
+    function showStatus(text, type) {
+        statusDiv.style.display = 'block';
+        statusDiv.innerText = text;
+        statusDiv.className = type;
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // ─── READ DIRECTORIES ───────────────────────────────────────────────────
+    async function fetchCurrentDirectoryFiles() {
+        // Validation check simplified to clear previous loading bugs
+        if (!GITHUB_TOKEN) {
+            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color);">Token string missing.</td></tr>`;
+            return;
+        }
+
+        const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+            });
+
+            if (!response.ok) throw new Error();
+
+            const targetItems = await response.json();
+            // Discard tracking assets like README or layout landing files
+            cachedFiles = targetItems.filter(item => item.type === 'file' && item.name !== 'README.md' && item.name !== 'index.html');
+            
+            renderDirectoryTable();
+        } catch (err) {
+            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color);">Connection refused. Double-check your repository configuration.</td></tr>`;
+        }
+    }
+
+    function renderDirectoryTable() {
+        directoryBody.innerHTML = ''; 
+
+        if (cachedFiles.length === 0) {
+            directoryBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #777;">Folder empty. No files deployed.</td></tr>';
+            return;
+        }
+
+        cachedFiles.forEach(file => {
+            const tr = document.createElement('tr');
+            tr.id = `file-${btoa(file.name).replace(/=/g, '')}`; 
+            tr.innerHTML = `
+                <td><span class="file-details">${file.name}</span></td>
+                <td class="meta-text">${formatBytes(file.size)}</td>
+                <td style="text-align: right;"></td>
+            `;
+
+            const actionTd = tr.querySelector('td:last-child');
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn delete-btn';
+            delBtn.innerText = 'Delete';
+            
+            delBtn.onclick = () => deleteTargetFile(file.name, file.sha);
+            
+            actionTd.appendChild(delBtn);
+            directoryBody.appendChild(tr);
+        });
+    }
+
+    // ─── ASYNC UPLOAD BACKGROUND PROCESSING ──────────────────────────────
+    uploadBtn.onclick = async () => {
+        const file = fileInput.files[0];
+
+        if (!file) {
+            showStatus('Please select a file to upload first.', 'error');
+            return;
+        }
+
+        uploadBtn.disabled = true;
+        showStatus('Uploading in the background... You can continue managing your files.', 'info');
+
+        const matchedCacheItem = cachedFiles.find(item => item.name === file.name);
+        const existingSha = matchedCacheItem ? matchedCacheItem.sha : null;
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = async () => {
+            const base64Content = reader.result.split(',')[1];
+            const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}/${file.name}`;
+
+            fileInput.value = ''; 
+            uploadBtn.disabled = false;
+
+            try {
+                const bodyPayload = {
+                    message: `Web Workspace updates: synchronization of ${file.name}`,
+                    content: base64Content
+                };
+                if (existingSha) bodyPayload.sha = existingSha;
+
+                const response = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyPayload)
+                });
+
+                if (response.ok) {
+                    showStatus(`"${file.name}" uploaded successfully!`, 'success');
+                    fetchCurrentDirectoryFiles(); 
+                } else {
+                    const errRes = await response.json();
+                    showStatus(`Transaction dropped: ${errRes.message}`, 'error');
+                }
+            } catch (error) {
+                showStatus('Network layer failure occurred.', 'error');
+            }
+        };
+    };
+
+    // ─── INSTANT UI DELETE ──────────────────────────────────────────────────
+    async function deleteTargetFile(filename, fileSha) {
+        if (!confirm(`Are you sure you want to permanently delete "${filename}"?`)) return;
+
+        const rowId = `file-${btoa(filename).replace(/=/g, '')}`;
+        const rowElement = document.getElementById(rowId);
+        if (rowElement) rowElement.classList.add('fade-out');
+
+        showStatus(`Purging "${filename}" in the background...`, 'info');
+        const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}/${filename}`;
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Web Dashboard clean: purge ${filename}`,
+                    sha: fileSha
+                })
+            });
+
+            if (response.ok) {
+                showStatus(`Successfully deleted "${filename}".`, 'success');
+                cachedFiles = cachedFiles.filter(item => item.name !== filename);
+                renderDirectoryTable();
+            } else {
+                if (rowElement) rowElement.classList.remove('fade-out'); 
+                const errData = await response.json();
+                showStatus(`Deletion rejected: ${errData.message}`, 'error');
+            }
+        } catch (error) {
+            if (rowElement) rowElement.classList.remove('fade-out');
+            showStatus('System interface network link drop error.', 'error');
+        }
+    }
+
+    // Set interactive operational hooks
+    refreshBtn.onclick = fetchCurrentDirectoryFiles;
+    
+    // Auto-load contents when page builds initial render engine
+    fetchCurrentDirectoryFiles();
+</script>
+
+</body>
+</html>

@@ -184,8 +184,10 @@
     </div>
 </div>
 
+<script src="config.js"></script>
+
 <script>
-    const GITHUB_TOKEN = "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"; 
+    // GITHUB_TOKEN variable is now securely pulled dynamically from your external configuration file!
     const GITHUB_USERNAME = "Devriz1";
     const REPO_NAME = "shared";
     const FOLDER_PATH = "exe"; 
@@ -214,9 +216,9 @@
 
     // ─── READ DIRECTORIES ───────────────────────────────────────────────────
     async function fetchCurrentDirectoryFiles() {
-        // Validation check simplified to clear previous loading bugs
-        if (!GITHUB_TOKEN) {
-            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color);">Token string missing.</td></tr>`;
+        // Validation handling if file hasn't been set up yet on local server
+        if (typeof GITHUB_TOKEN === 'undefined' || !GITHUB_TOKEN) {
+            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color); font-weight: 600;">Security Error: config.js missing or GITHUB_TOKEN variable is not defined.</td></tr>`;
             return;
         }
 
@@ -230,7 +232,6 @@
             if (!response.ok) throw new Error();
 
             const targetItems = await response.json();
-            // Discard tracking assets like README or layout landing files
             cachedFiles = targetItems.filter(item => item.type === 'file' && item.name !== 'README.md' && item.name !== 'index.html');
             
             renderDirectoryTable();
@@ -369,5 +370,4 @@
 </script>
 
 </body>
-</html>                    
-
+</html>

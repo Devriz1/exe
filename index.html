@@ -20,7 +20,7 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 40px 20px;
+            padding: 20px 10px; /* Reduced default padding for mobile frames */
             display: flex;
             justify-content: center;
         }
@@ -34,8 +34,9 @@
             background: var(--card-bg);
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-            margin-bottom: 30px;
+            padding: 20px; /* More compact mobile-friendly interior padding */
+            margin-bottom: 20px;
+            box-sizing: border-box;
         }
 
         h1, h2 {
@@ -43,7 +44,8 @@
             margin-top: 0;
         }
 
-        h1 { text-align: center; margin-bottom: 25px; }
+        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 25px; }
+        h2 { font-size: 1.2rem; }
 
         .form-group {
             margin-bottom: 20px;
@@ -183,8 +185,9 @@
 
         .breadcrumb {
             display: flex;
+            flex-wrap: wrap; /* Allows lengthy deep trails to clean stack on small devices */
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             margin-bottom: 15px;
             font-size: 0.9rem;
             font-weight: 600;
@@ -201,6 +204,10 @@
         .breadcrumb .current-folder {
             color: #333;
             cursor: default;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         #status {
@@ -210,6 +217,7 @@
             text-align: center;
             font-weight: 500;
             display: none;
+            word-break: break-word;
         }
 
         .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -250,6 +258,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            word-break: break-all; /* Prevents raw extended file names from bursting outside bounds */
         }
 
         .meta-text {
@@ -260,6 +269,77 @@
         .fade-out {
             opacity: 0.4;
             pointer-events: none;
+        }
+
+        /* ─── MOBILE RESPONSIVENESS SYSTEM ────────────────────────────────── */
+        @media (max-width: 600px) {
+            body {
+                padding: 15px 8px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            /* Hides the structural desktop header rows */
+            .file-table thead {
+                display: none;
+            }
+
+            /* Rewires table rows to layout as independent stacked responsive layout blocks */
+            .file-table, .file-table tbody, .file-table tr, .file-table td {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .file-table tr {
+                padding: 12px 0;
+                border-bottom: 2px solid #eaeded;
+                position: relative;
+            }
+
+            .file-table td {
+                border: none;
+                padding: 4px 0;
+            }
+
+            /* Indents details and actions clean vertically */
+            .file-table td:nth-child(1) {
+                padding-bottom: 2px;
+            }
+
+            .file-table td:nth-child(2) {
+                font-size: 0.75rem;
+                padding-left: 26px; /* aligns nicely directly beneath the asset title text */
+                margin-bottom: 10px;
+            }
+
+            .file-table td:last-child {
+                text-align: left !important;
+                padding-left: 26px;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+
+            .open-btn, .delete-btn {
+                padding: 8px 12px;
+            }
+
+            /* Align refresh text block cleanly on header */
+            .card div[style*="display: flex"] {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
+            }
+            
+            #refreshBtn {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -350,7 +430,7 @@
     const playIcon = document.getElementById('playIcon');
     
     let cachedFiles = [];
-    let currentAbortController = null; // Replaced XHR native abort hooks with clean Fetch AbortControllers
+    let currentAbortController = null; 
     let isPaused = false;
 
     const iconFolder = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#0071e3" style="vertical-align: middle;"><path d="M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>`;
@@ -374,6 +454,7 @@
         return currentSubPaths.join('/');
     }
 
+    // Fixed desktop-only sizing layout inside breadcrumbs for robust small-width devices
     function updateNavigationUI() {
         const currentPathStr = getActivePath();
         folderTitle.innerText = `Files in folder: "/${currentPathStr}"`;
@@ -382,7 +463,7 @@
         currentSubPaths.forEach((folder, index) => {
             breadcrumbTrail.innerHTML += ` <span>&rsaquo;</span> `;
             if (index === currentSubPaths.length - 1) {
-                breadcrumbTrail.innerHTML += `<span class="current-folder">${folder}</span>`;
+                breadcrumbTrail.innerHTML += `<span class="current-folder" title="${folder}">${folder}</span>`;
             } else {
                 breadcrumbTrail.innerHTML += `<span class="crumb-item" onclick="jumpToPathIndex(${index})">${folder}</span>`;
             }
@@ -394,7 +475,6 @@
         fetchCurrentDirectoryFiles();
     }
 
-    // ─── READ DIRECTORIES SECURELY VIA RENDER PROXY ─────────────────────────
     async function fetchCurrentDirectoryFiles() {
         const activePath = getActivePath();
         directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #777; font-style: italic;">Fetching current directory assets...</td></tr>`;
@@ -472,7 +552,6 @@
         });
     }
 
-    // ─── UPLOAD PROCESSING VIA SECURE RENDER GATEWAY ────────────────────────
     uploadBtn.onclick = async () => {
         const file = fileInput.files[0];
 
@@ -501,7 +580,6 @@
             currentAbortController = new AbortController();
 
             try {
-                // Fake progression ticks since pure Fetch POST body chunk visibility isn't natively supported on basic browsers without Stream engines
                 let mockProgress = 0;
                 const interval = setInterval(() => {
                     if (isPaused) return;
@@ -573,7 +651,6 @@
         isPaused = false;
     }
 
-    // ─── INSTANT UI DELETE VIA RENDER PROXY ─────────────────────────────────
     async function deleteTargetFile(filename, fileSha) {
         if (!confirm(`Are you sure you want to permanently delete "${filename}"?`)) return;
 
@@ -611,7 +688,6 @@
 
     refreshBtn.onclick = fetchCurrentDirectoryFiles;
     
-    // Auto-run directory scan only if backend string configuration has been specified
     if (RENDER_BACKEND_URL.indexOf("your-live-app-subdomain") === -1) {
         fetchCurrentDirectoryFiles();
     } else {

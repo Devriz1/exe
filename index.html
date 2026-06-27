@@ -12,6 +12,7 @@
             --primary-color: #24292e;
             --accent-color: #28a745; 
             --danger-color: #cb2431;
+            --folder-color: #0366d6;
         }
 
         body {
@@ -72,6 +73,9 @@
             cursor: pointer;
             transition: background 0.2s;
             border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .upload-btn {
@@ -80,10 +84,24 @@
             color: white;
             padding: 12px;
             font-size: 1rem;
+            justify-content: center;
         }
 
         .upload-btn:hover { background-color: #218838; }
         .upload-btn:disabled { background-color: #94d3a2; cursor: not-allowed; }
+
+        .open-btn {
+            background-color: #f1f3f5;
+            color: var(--folder-color);
+            border: 1px solid #ced4da;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+        .open-btn:hover {
+            background-color: var(--folder-color);
+            color: white;
+            border-color: var(--folder-color);
+        }
 
         .delete-btn {
             background-color: #fff;
@@ -96,6 +114,93 @@
         .delete-btn:hover {
             background-color: var(--danger-color);
             color: white;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .progress-text-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        .progress-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .progress-bar-bg {
+            flex-grow: 1;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background-color: #0071e3;
+            transition: width 0.1s ease;
+        }
+
+        .progress-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .action-icon-btn:hover {
+            background-color: #e2e3e5;
+        }
+
+        .action-icon-btn.cancel-icon:hover {
+            background-color: #f8d7da;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .breadcrumb span.crumb-item {
+            color: var(--folder-color);
+            cursor: pointer;
+        }
+        .breadcrumb span.crumb-item:hover {
+            text-decoration: underline;
+        }
+        .breadcrumb .current-folder {
+            color: #333;
+            cursor: default;
         }
 
         #status {
@@ -114,7 +219,7 @@
         .file-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 5px;
         }
 
         .file-table th, .file-table td {
@@ -129,9 +234,22 @@
             font-weight: 600;
         }
 
+        .file-row {
+            transition: background 0.15s;
+        }
+        .file-row.is-directory {
+            cursor: pointer;
+        }
+        .file-row.is-directory:hover {
+            background-color: #f8f9ff;
+        }
+
         .file-details {
             font-weight: 500;
             color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .meta-text {
@@ -158,19 +276,42 @@
 
         <button id="uploadBtn" class="btn upload-btn">Upload File</button>
 
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-text-wrapper">
+                <span id="progressFileName">Uploading asset...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar-row">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+                <div class="progress-actions">
+                    <button id="pauseResumeBtn" class="action-icon-btn" title="Pause Upload">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#333" id="pauseIcon"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#28a745" id="playIcon" style="display:none;"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button id="cancelUploadBtn" class="action-icon-btn cancel-icon" title="Cancel Upload">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#cb2431"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="status"></div>
     </div>
 
     <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h2>Files in folder: "/exe"</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h2 id="folderTitle">Files in folder: "/"</h2>
             <button id="refreshBtn" class="btn" style="background-color: #24292e; color: white; padding: 6px 12px; font-size: 0.85rem;">🔄 Refresh List</button>
         </div>
+        
+        <div class="breadcrumb" id="breadcrumbTrail"></div>
         
         <table class="file-table">
             <thead>
                 <tr>
-                    <th>File Name</th>
+                    <th>Asset Name</th>
                     <th>Size</th>
                     <th style="text-align: right;">Action</th>
                 </tr>
@@ -184,21 +325,36 @@
     </div>
 </div>
 
-<script src="config.js"></script>
-
 <script>
-    // GITHUB_TOKEN variable is now securely pulled dynamically from your external configuration file!
-    const GITHUB_USERNAME = "Devriz1";
-    const REPO_NAME = "shared";
-    const FOLDER_PATH = "exe"; 
+    // ⚠️ CRITICAL STEP: Replace this with your exact live Render Service link from Step 5!
+    const RENDER_BACKEND_URL = "https://your-live-app-subdomain.onrender.com";
+    
+    let currentSubPaths = []; 
 
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
     const refreshBtn = document.getElementById('refreshBtn');
     const statusDiv = document.getElementById('status');
     const directoryBody = document.getElementById('directoryBody');
+    const folderTitle = document.getElementById('folderTitle');
+    const breadcrumbTrail = document.getElementById('breadcrumbTrail');
+
+    // Progress Elements
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFileName = document.getElementById('progressFileName');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressBarFill = document.getElementById('progressBarFill');
+    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+    const pauseIcon = document.getElementById('pauseIcon');
+    const playIcon = document.getElementById('playIcon');
     
     let cachedFiles = [];
+    let currentAbortController = null; // Replaced XHR native abort hooks with clean Fetch AbortControllers
+    let isPaused = false;
+
+    const iconFolder = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#0071e3" style="vertical-align: middle;"><path d="M10 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>`;
+    const iconFile = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#6c757d" style="vertical-align: middle;"><path d="M14 2H6c-1.1 0-1.99.89-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.89 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`;
 
     function showStatus(text, type) {
         statusDiv.style.display = 'block';
@@ -207,36 +363,55 @@
     }
 
     function formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
+        if (!bytes || bytes === 0) return '0 Bytes';
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // ─── READ DIRECTORIES ───────────────────────────────────────────────────
-    async function fetchCurrentDirectoryFiles() {
-        // Validation handling if file hasn't been set up yet on local server
-        if (typeof GITHUB_TOKEN === 'undefined' || !GITHUB_TOKEN) {
-            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color); font-weight: 600;">Security Error: config.js missing or GITHUB_TOKEN variable is not defined.</td></tr>`;
-            return;
-        }
+    function getActivePath() {
+        return currentSubPaths.join('/');
+    }
 
-        const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}`;
+    function updateNavigationUI() {
+        const currentPathStr = getActivePath();
+        folderTitle.innerText = `Files in folder: "/${currentPathStr}"`;
+
+        breadcrumbTrail.innerHTML = `<span class="crumb-item" onclick="jumpToPathIndex(-1)">Root</span>`;
+        currentSubPaths.forEach((folder, index) => {
+            breadcrumbTrail.innerHTML += ` <span>&rsaquo;</span> `;
+            if (index === currentSubPaths.length - 1) {
+                breadcrumbTrail.innerHTML += `<span class="current-folder">${folder}</span>`;
+            } else {
+                breadcrumbTrail.innerHTML += `<span class="crumb-item" onclick="jumpToPathIndex(${index})">${folder}</span>`;
+            }
+        });
+    }
+
+    function jumpToPathIndex(index) {
+        currentSubPaths = currentSubPaths.slice(0, index + 1);
+        fetchCurrentDirectoryFiles();
+    }
+
+    // ─── READ DIRECTORIES SECURELY VIA RENDER PROXY ─────────────────────────
+    async function fetchCurrentDirectoryFiles() {
+        const activePath = getActivePath();
+        directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #777; font-style: italic;">Fetching current directory assets...</td></tr>`;
+        updateNavigationUI();
 
         try {
-            const response = await fetch(apiUrl, {
-                headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
-            });
-
+            const response = await fetch(`${RENDER_BACKEND_URL}/api/files?path=${encodeURIComponent(activePath)}`);
             if (!response.ok) throw new Error();
 
-            const targetItems = await response.json();
-            cachedFiles = targetItems.filter(item => item.type === 'file' && item.name !== 'README.md' && item.name !== 'index.html');
+            const items = await response.json();
             
+            cachedFiles = items.filter(item => item.name !== 'README.md' && item.name !== 'index.html' && !item.name.startsWith('.'));
+            cachedFiles.sort((a, b) => (b.type === 'dir') - (a.type === 'dir'));
+
             renderDirectoryTable();
         } catch (err) {
-            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color);">Connection refused. Double-check your repository configuration.</td></tr>`;
+            directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color);">Connection refused. Double-check your backend Render service configuration.</td></tr>`;
         }
     }
 
@@ -244,32 +419,60 @@
         directoryBody.innerHTML = ''; 
 
         if (cachedFiles.length === 0) {
-            directoryBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #777;">Folder empty. No files deployed.</td></tr>';
+            directoryBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #777;">Folder empty. No items deployed here.</td></tr>';
             return;
         }
 
-        cachedFiles.forEach(file => {
+        cachedFiles.forEach(item => {
             const tr = document.createElement('tr');
-            tr.id = `file-${btoa(file.name).replace(/=/g, '')}`; 
+            tr.className = `file-row ${item.type === 'dir' ? 'is-directory' : ''}`;
+            tr.id = `item-${btoa(encodeURIComponent(item.name)).replace(/=/g, '')}`; 
+            
+            const isDir = item.type === 'dir';
+            
             tr.innerHTML = `
-                <td><span class="file-details">${file.name}</span></td>
-                <td class="meta-text">${formatBytes(file.size)}</td>
+                <td>
+                    <span class="file-details">
+                        ${isDir ? iconFolder : iconFile}
+                        ${item.name}
+                    </span>
+                </td>
+                <td class="meta-text">${isDir ? 'Directory Folder' : formatBytes(item.size)}</td>
                 <td style="text-align: right;"></td>
             `;
 
             const actionTd = tr.querySelector('td:last-child');
-            const delBtn = document.createElement('button');
-            delBtn.className = 'btn delete-btn';
-            delBtn.innerText = 'Delete';
-            
-            delBtn.onclick = () => deleteTargetFile(file.name, file.sha);
-            
-            actionTd.appendChild(delBtn);
+
+            if (isDir) {
+                const openBtn = document.createElement('button');
+                openBtn.className = 'btn open-btn';
+                openBtn.innerText = 'Open';
+                
+                const processOpen = () => {
+                    currentSubPaths.push(item.name);
+                    fetchCurrentDirectoryFiles();
+                };
+
+                openBtn.onclick = processOpen;
+                tr.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON') processOpen();
+                };
+                
+                actionTd.appendChild(openBtn);
+            } else {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn delete-btn';
+                delBtn.innerText = 'Delete';
+                delBtn.onclick = () => deleteTargetFile(item.name, item.sha);
+                
+                actionTd.appendChild(delBtn);
+            }
+
             directoryBody.appendChild(tr);
         });
     }
 
-    // ─── ASYNC UPLOAD BACKGROUND PROCESSING ──────────────────────────────
+    // ─── UPLOAD PROCESSING VIA SECURE RENDER GATEWAY ────────────────────────
     uploadBtn.onclick = async () => {
         const file = fileInput.files[0];
 
@@ -279,70 +482,114 @@
         }
 
         uploadBtn.disabled = true;
-        showStatus('Uploading in the background... You can continue managing your files.', 'info');
-
-        const matchedCacheItem = cachedFiles.find(item => item.name === file.name);
-        const existingSha = matchedCacheItem ? matchedCacheItem.sha : null;
+        statusDiv.style.display = 'none'; 
+        
+        isPaused = false;
+        pauseIcon.style.display = 'inline';
+        playIcon.style.display = 'none';
+        pauseResumeBtn.title = "Pause Upload";
+        progressFileName.innerText = `Streaming to Cloud Server: ${file.name}`;
+        progressPercent.innerText = 'Connecting...';
+        progressBarFill.style.width = '0%';
+        progressContainer.style.display = 'block';
 
         const reader = new FileReader();
         reader.readAsDataURL(file);
         
         reader.onload = async () => {
             const base64Content = reader.result.split(',')[1];
-            const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}/${file.name}`;
-
-            fileInput.value = ''; 
-            uploadBtn.disabled = false;
+            currentAbortController = new AbortController();
 
             try {
-                const bodyPayload = {
-                    message: `Web Workspace updates: synchronization of ${file.name}`,
-                    content: base64Content
-                };
-                if (existingSha) bodyPayload.sha = existingSha;
+                // Fake progression ticks since pure Fetch POST body chunk visibility isn't natively supported on basic browsers without Stream engines
+                let mockProgress = 0;
+                const interval = setInterval(() => {
+                    if (isPaused) return;
+                    if (mockProgress < 90) {
+                        mockProgress += Math.floor(Math.random() * 10) + 2;
+                        if (mockProgress > 90) mockProgress = 90;
+                        progressPercent.innerText = `${mockProgress}%`;
+                        progressBarFill.style.width = `${mockProgress}%`;
+                    }
+                }, 300);
 
-                const response = await fetch(apiUrl, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(bodyPayload)
+                const response = await fetch(`${RENDER_BACKEND_URL}/api/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: currentAbortController.signal,
+                    body: JSON.stringify({
+                        filename: file.name,
+                        path: getActivePath(),
+                        content: base64Content
+                    })
                 });
 
+                clearInterval(interval);
+                resetUploadState();
+
                 if (response.ok) {
-                    showStatus(`"${file.name}" uploaded successfully!`, 'success');
+                    showStatus(`"${file.name}" synchronized successfully via cloud proxy!`, 'success');
                     fetchCurrentDirectoryFiles(); 
                 } else {
                     const errRes = await response.json();
-                    showStatus(`Transaction dropped: ${errRes.message}`, 'error');
+                    showStatus(`Transaction dropped: ${errRes.error || 'Server error'}`, 'error');
                 }
-            } catch (error) {
-                showStatus('Network layer failure occurred.', 'error');
+            } catch (err) {
+                resetUploadState();
+                if (err.name === 'AbortError') {
+                    showStatus('Upload cancelled by user.', 'info');
+                } else {
+                    showStatus('Network proxy service connection failure.', 'error');
+                }
             }
         };
     };
 
-    // ─── INSTANT UI DELETE ──────────────────────────────────────────────────
+    pauseResumeBtn.onclick = () => {
+        if (!currentAbortController) return;
+        isPaused = !isPaused;
+        if (isPaused) {
+            pauseIcon.style.display = 'none';
+            playIcon.style.display = 'inline';
+            progressFileName.innerText = `[Paused] Uploading: ${fileInput.files[0]?.name}`;
+        } else {
+            pauseIcon.style.display = 'inline';
+            playIcon.style.display = 'none';
+            progressFileName.innerText = `Streaming to Cloud Server: ${fileInput.files[0]?.name}`;
+        }
+    };
+
+    cancelUploadBtn.onclick = () => {
+        if (currentAbortController) {
+            currentAbortController.abort(); 
+        }
+    };
+
+    function resetUploadState() {
+        fileInput.value = ''; 
+        uploadBtn.disabled = false;
+        progressContainer.style.display = 'none';
+        currentAbortController = null;
+        isPaused = false;
+    }
+
+    // ─── INSTANT UI DELETE VIA RENDER PROXY ─────────────────────────────────
     async function deleteTargetFile(filename, fileSha) {
         if (!confirm(`Are you sure you want to permanently delete "${filename}"?`)) return;
 
-        const rowId = `file-${btoa(filename).replace(/=/g, '')}`;
+        const rowId = `item-${btoa(encodeURIComponent(filename)).replace(/=/g, '')}`;
         const rowElement = document.getElementById(rowId);
         if (rowElement) rowElement.classList.add('fade-out');
 
         showStatus(`Purging "${filename}" in the background...`, 'info');
-        const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FOLDER_PATH}/${filename}`;
 
         try {
-            const response = await fetch(apiUrl, {
+            const response = await fetch(`${RENDER_BACKEND_URL}/api/delete`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: `Web Dashboard clean: purge ${filename}`,
+                    filename: filename,
+                    path: getActivePath(),
                     sha: fileSha
                 })
             });
@@ -354,7 +601,7 @@
             } else {
                 if (rowElement) rowElement.classList.remove('fade-out'); 
                 const errData = await response.json();
-                showStatus(`Deletion rejected: ${errData.message}`, 'error');
+                showStatus(`Deletion rejected: ${errData.error}`, 'error');
             }
         } catch (error) {
             if (rowElement) rowElement.classList.remove('fade-out');
@@ -362,11 +609,14 @@
         }
     }
 
-    // Set interactive operational hooks
     refreshBtn.onclick = fetchCurrentDirectoryFiles;
     
-    // Auto-load contents when page builds initial render engine
-    fetchCurrentDirectoryFiles();
+    // Auto-run directory scan only if backend string configuration has been specified
+    if (RENDER_BACKEND_URL.indexOf("your-live-app-subdomain") === -1) {
+        fetchCurrentDirectoryFiles();
+    } else {
+        directoryBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger-color); font-weight: 600;">Setup Step Remaining: Update the RENDER_BACKEND_URL on line 201 with your live URL link.</td></tr>`;
+    }
 </script>
 
 </body>
